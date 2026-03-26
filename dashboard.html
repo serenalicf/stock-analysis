@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Signal · Stock Analysis</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:       #080c10;
+    --surface:  #0d1318;
+    --border:   #1a2330;
+    --border2:  #243040;
+    --text:     #c8d8e8;
+    --muted:    #4a6070;
+    --accent:   #00d4ff;
+    --green:    #00e887;
+    --red:      #ff4060;
+    --yellow:   #ffd060;
+    --orange:   #ff8c40;
+    --mono:     'Space Mono', monospace;
+    --sans:     'DM Sans', sans-serif;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* scanline overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.04) 2px,
+      rgba(0,0,0,0.04) 4px
+    );
+    pointer-events: none;
+    z-index: 9999;
+  }
+
+  /* ── Header ── */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 32px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(13,19,24,0.95);
+    backdrop-filter: blur(12px);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .logo {
+    font-family: var(--mono);
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    color: var(--accent);
+  }
+  .logo span { color: var(--muted); font-weight: 400; }
+
+  .tagline {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+
+  /* ── Input bar ── */
+  .input-bar {
+    padding: 28px 32px 20px;
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .ticker-input {
+    flex: 1;
+    min-width: 260px;
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 13px;
+    letter-spacing: 0.08em;
+    padding: 12px 16px;
+    outline: none;
+    transition: border-color 0.2s;
+    text-transform: uppercase;
+  }
+  .ticker-input::placeholder { color: var(--muted); }
+  .ticker-input:focus { border-color: var(--accent); }
+
+  .btn {
+    background: var(--accent);
+    color: #000;
+    border: none;
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    padding: 12px 24px;
+    cursor: pointer;
+    transition: opacity 0.15s, transform 0.1s;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .btn:hover { opacity: 0.85; }
+  .btn:active { transform: scale(0.97); }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .hint {
+    width: 100%;
+    font-size: 11px;
+    color: var(--muted);
+    font-family: var(--mono);
+    letter-spacing: 0.05em;
+    padding-top: 4px;
+  }
+  .preset-tag {
+    display: inline-block;
+    border: 1px solid var(--border2);
+    padding: 3px 8px;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+    cursor: pointer;
+    margin-right: 5px;
+    margin-top: 4px;
+    transition: border-color 0.2s, color 0.2s;
+    letter-spacing: 0.08em;
+  }
+  .preset-tag:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* ── Status / progress ── */
+  .status-bar {
+    padding: 0 32px 12px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    min-height: 28px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    animation: pulse 1s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.2} }
+
+  /* ── Grid ── */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 16px;
+    padding: 0 32px 48px;
+  }
+
+  /* ── Card ── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 24px;
+    position: relative;
+    overflow: hidden;
+    animation: fadeUp 0.4s ease both;
+    transition: border-color 0.2s;
+  }
+  .card:hover { border-color: var(--border2); }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* color accent stripe */
+  .card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--card-color, var(--accent));
+  }
+
+  .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 20px;
+  }
+
+  .ticker-name {
+    font-family: var(--mono);
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: #fff;
+  }
+  .price-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 3px;
+    letter-spacing: 0.06em;
+  }
+
+  /* ── Score ring ── */
+  .score-block {
+    text-align: right;
+  }
+  .score-circle {
+    position: relative;
+    display: inline-block;
+  }
+  .score-circle svg {
+    transform: rotate(-90deg);
+  }
+  .score-text {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+  .score-num {
+    font-family: var(--mono);
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 1;
+  }
+  .score-label {
+    font-family: var(--mono);
+    font-size: 7px;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  .signal-badge {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    padding: 4px 8px;
+    margin-top: 6px;
+    text-transform: uppercase;
+  }
+
+  /* ── Dimension bars ── */
+  .dims { margin-bottom: 18px; }
+  .dim-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .dim-label {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    width: 100px;
+    flex-shrink: 0;
+    text-transform: uppercase;
+  }
+  .dim-bar-wrap {
+    flex: 1;
+    height: 4px;
+    background: var(--border);
+    position: relative;
+    overflow: hidden;
+  }
+  .dim-bar-fill {
+    height: 100%;
+    transition: width 0.8s cubic-bezier(0.16,1,0.3,1);
+    width: 0;
+  }
+  .dim-val {
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--text);
+    width: 30px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+
+  /* ── Analyst section ── */
+  .section-title {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.18em;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 10px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .analyst-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+  }
+  .stat-chip {
+    flex: 1;
+    min-width: 70px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    padding: 8px 10px;
+    text-align: center;
+  }
+  .stat-chip .val {
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 700;
+  }
+  .stat-chip .lbl {
+    font-family: var(--mono);
+    font-size: 8px;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    margin-top: 3px;
+    text-transform: uppercase;
+  }
+
+  /* ── S/R levels ── */
+  .sr-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 14px;
+  }
+  .sr-item { text-align: center; }
+  .sr-item .sr-val {
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .sr-item .sr-lbl {
+    font-family: var(--mono);
+    font-size: 8px;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    margin-top: 2px;
+    text-transform: uppercase;
+  }
+  .sr-dist {
+    font-family: var(--mono);
+    font-size: 9px;
+    margin-top: 2px;
+  }
+
+  /* ── Sentiment pills ── */
+  .sent-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .sent-pill {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.08em;
+    padding: 4px 10px;
+    border: 1px solid var(--border);
+    color: var(--muted);
+  }
+  .sent-pill span { font-weight: 700; }
+
+  /* ── Error card ── */
+  .card.error { --card-color: var(--red); }
+  .error-msg {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--red);
+    margin-top: 8px;
+    word-break: break-all;
+  }
+
+  /* ── Empty state ── */
+  .empty {
+    grid-column: 1/-1;
+    text-align: center;
+    padding: 80px 20px;
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.12em;
+  }
+  .empty-icon { font-size: 32px; margin-bottom: 16px; opacity: 0.3; }
+
+  /* Responsive */
+  @media(max-width:600px){
+    header, .input-bar, .grid, .status-bar { padding-left:16px; padding-right:16px; }
+    .grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="logo">SIGNAL<span>.io</span></div>
+    <div class="tagline">Multi-Dimensional Stock Analysis</div>
+  </div>
+  <div class="tagline" id="clock"></div>
+</header>
+
+<div class="input-bar">
+  <input class="ticker-input" id="tickerInput"
+    placeholder="AAPL, MSFT, NVDA, TSLA ..."
+    value=""
+    autocomplete="off" spellcheck="false">
+  <button class="btn" id="analyzeBtn" onclick="analyze()">ANALYZE ▶</button>
+  <div class="hint">
+    Enter 1–20 tickers separated by commas.&nbsp;&nbsp;
+    <span class="preset-tag" onclick="setPreset('AAPL,MSFT,GOOGL,AMZN,NVDA')">MAG-5</span>
+    <span class="preset-tag" onclick="setPreset('SPY,QQQ,IWM,DIA,GLD')">ETFs</span>
+    <span class="preset-tag" onclick="setPreset('TSLA,PLTR,COIN,MSTR,RBLX')">Momentum</span>
+    <span class="preset-tag" onclick="setPreset('JPM,BAC,GS,MS,WFC')">Banks</span>
+  </div>
+</div>
+
+<div class="status-bar" id="statusBar"></div>
+
+<div class="grid" id="grid">
+  <div class="empty">
+    <div class="empty-icon">◈</div>
+    Enter tickers above and press ANALYZE
+  </div>
+</div>
+
+<script>
+// ── Clock ──────────────────────────────────────────────────────────────────
+function updateClock(){
+  const now = new Date();
+  document.getElementById('clock').textContent =
+    now.toLocaleTimeString('en-US', {hour12:false}) + ' EST';
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ── Presets ────────────────────────────────────────────────────────────────
+function setPreset(tickers){
+  document.getElementById('tickerInput').value = tickers;
+}
+
+// ── Color helpers ──────────────────────────────────────────────────────────
+function scoreColor(s){
+  if(s >= 75) return 'var(--green)';
+  if(s >= 60) return '#7cf0b0';
+  if(s >= 45) return 'var(--yellow)';
+  if(s >= 30) return 'var(--orange)';
+  return 'var(--red)';
+}
+function signalColor(sig){
+  if(sig==='STRONG BUY')  return {bg:'rgba(0,232,135,0.15)', txt:'var(--green)',  border:'var(--green)'};
+  if(sig==='BUY')         return {bg:'rgba(0,232,135,0.07)', txt:'#7cf0b0',       border:'#7cf0b0'};
+  if(sig==='NEUTRAL')     return {bg:'rgba(255,208,96,0.1)',  txt:'var(--yellow)', border:'var(--yellow)'};
+  if(sig==='SELL')        return {bg:'rgba(255,140,64,0.1)',  txt:'var(--orange)', border:'var(--orange)'};
+  return                         {bg:'rgba(255,64,96,0.12)',  txt:'var(--red)',    border:'var(--red)'};
+}
+
+// ── Dim labels ─────────────────────────────────────────────────────────────
+const DIM_LABELS = {
+  technicals:'INDICATORS',
+  trend:'TREND ALIGN',
+  support_resistance:'SUPPORT/RES',
+  analyst:'ANALYST',
+  sentiment:'SENTIMENT',
+};
+
+// ── Main analyze ───────────────────────────────────────────────────────────
+async function analyze(){
+  const raw = document.getElementById('tickerInput').value.trim();
+  if(!raw) return;
+  const tickers = raw.split(/[\s,]+/).map(t=>t.toUpperCase()).filter(Boolean).slice(0,20);
+  if(!tickers.length) return;
+
+  const btn = document.getElementById('analyzeBtn');
+  const grid = document.getElementById('grid');
+  const status = document.getElementById('statusBar');
+
+  btn.disabled = true;
+  grid.innerHTML = '';
+  status.innerHTML = `<div class="dot"></div> Fetching data for ${tickers.join(', ')} …`;
+
+  try {
+    const resp = await fetch('/analyze', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({tickers}),
+    });
+    if(!resp.ok) throw new Error(`Server error ${resp.status}`);
+    const results = await resp.json();
+    status.innerHTML = `<span style="color:var(--green)">✓</span>&nbsp;Analysis complete — ${results.length} tickers · ${new Date().toLocaleTimeString()}`;
+    renderCards(results);
+  } catch(e){
+    status.innerHTML = `<span style="color:var(--red)">✗</span>&nbsp;${e.message}`;
+    grid.innerHTML = `<div class="empty"><div class="empty-icon">⚠</div>${e.message}</div>`;
+  }
+  btn.disabled = false;
+}
+
+// ── Enter key ──────────────────────────────────────────────────────────────
+document.getElementById('tickerInput').addEventListener('keydown', e=>{
+  if(e.key==='Enter') analyze();
+});
+
+// ── Render ─────────────────────────────────────────────────────────────────
+function renderCards(results){
+  const grid = document.getElementById('grid');
+  grid.innerHTML = '';
+  results.sort((a,b)=>b.score-a.score);
+  results.forEach((r, idx) => {
+    const el = buildCard(r);
+    el.style.animationDelay = `${idx * 60}ms`;
+    grid.appendChild(el);
+  });
+  // Trigger bar animations
+  requestAnimationFrame(()=>{
+    document.querySelectorAll('.dim-bar-fill').forEach(bar=>{
+      bar.style.width = bar.dataset.w + '%';
+    });
+  });
+}
+
+function buildCard(r){
+  const card = document.createElement('div');
+  card.className = 'card' + (r.error ? ' error' : '');
+  const col = scoreColor(r.score);
+  card.style.setProperty('--card-color', col);
+
+  if(r.error){
+    card.innerHTML = `
+      <div class="card-header">
+        <div><div class="ticker-name">${r.ticker}</div></div>
+      </div>
+      <div class="error-msg">⚠ ${r.error}</div>`;
+    return card;
+  }
+
+  const sc = signalColor(r.signal);
+  const bd = r.breakdown || {};
+  const an = r.analyst   || {};
+  const st = r.sentiment || {};
+  const sr = r.support_resistance || {};
+  const ind = r.indicators || {};
+  const price = ind.price || sr.current_price || 0;
+
+  // Score ring SVG
+  const R = 36, C = 2*Math.PI*R;
+  const frac = (100 - r.score) / 100;
+  const ring = `
+    <svg width="88" height="88" viewBox="0 0 88 88">
+      <circle cx="44" cy="44" r="${R}" fill="none" stroke="var(--border)" stroke-width="5"/>
+      <circle cx="44" cy="44" r="${R}" fill="none"
+        stroke="${col}" stroke-width="5"
+        stroke-dasharray="${C}" stroke-dashoffset="${C * frac}"
+        stroke-linecap="butt"
+        style="transition:stroke-dashoffset 1s cubic-bezier(0.16,1,0.3,1)"/>
+    </svg>`;
+
+  // Dimension bars
+  const dimKeys = ['technicals','trend','support_resistance','analyst','sentiment'];
+  const dimBars = dimKeys.map(k=>{
+    const v = bd[k] ?? 50;
+    const c = scoreColor(v);
+    return `<div class="dim-row">
+      <div class="dim-label">${DIM_LABELS[k]||k}</div>
+      <div class="dim-bar-wrap">
+        <div class="dim-bar-fill" style="background:${c}" data-w="${v}"></div>
+      </div>
+      <div class="dim-val">${v}</div>
+    </div>`;
+  }).join('');
+
+  // Analyst chips
+  const totalAn = an.total || 0;
+  const analystChips = totalAn ? `
+    <div class="analyst-row">
+      <div class="stat-chip"><div class="val" style="color:var(--green)">${an.strong_buy||0}</div><div class="lbl">STR BUY</div></div>
+      <div class="stat-chip"><div class="val" style="color:#7cf0b0">${an.buy||0}</div><div class="lbl">BUY</div></div>
+      <div class="stat-chip"><div class="val" style="color:var(--yellow)">${an.hold||0}</div><div class="lbl">HOLD</div></div>
+      <div class="stat-chip"><div class="val" style="color:var(--orange)">${an.sell||0}</div><div class="lbl">SELL</div></div>
+      <div class="stat-chip"><div class="val" style="color:var(--red)">${an.strong_sell||0}</div><div class="lbl">STR SELL</div></div>
+    </div>` : `<div style="font-family:var(--mono);font-size:10px;color:var(--muted);margin-bottom:14px">No analyst data</div>`;
+
+  const targetLine = an.target_mean ? `
+    <div style="font-family:var(--mono);font-size:10px;color:var(--muted);margin-bottom:14px">
+      Target: <span style="color:var(--text);font-weight:700">$${an.target_mean?.toFixed(2)}</span>
+      &nbsp;·&nbsp; Range $${an.target_low?.toFixed(2)} – $${an.target_high?.toFixed(2)}
+      &nbsp;·&nbsp; <span style="color:${an.target_mean>price?'var(--green)':'var(--red)'}">
+        ${an.target_mean>price?'▲':'▼'} ${Math.abs((an.target_mean-price)/price*100).toFixed(1)}% upside
+      </span>
+    </div>` : '';
+
+  // S/R
+  const srBlock = (sr.nearest_support || sr.nearest_resistance) ? `
+    <div class="sr-row">
+      <div class="sr-item">
+        <div class="sr-val" style="color:var(--green)">$${sr.nearest_support?.toFixed(2)||'—'}</div>
+        <div class="sr-lbl">Support</div>
+        ${sr.dist_to_support!=null?`<div class="sr-dist" style="color:var(--muted)">-${sr.dist_to_support}%</div>`:''}
+      </div>
+      <div class="sr-item" style="font-family:var(--mono);font-size:22px;color:var(--border2)">◈</div>
+      <div class="sr-item" style="text-align:center">
+        <div class="sr-val" style="color:var(--accent)">$${price?.toFixed(2)||'—'}</div>
+        <div class="sr-lbl">Current</div>
+      </div>
+      <div class="sr-item" style="font-family:var(--mono);font-size:22px;color:var(--border2)">◈</div>
+      <div class="sr-item" style="text-align:right">
+        <div class="sr-val" style="color:var(--red)">$${sr.nearest_resistance?.toFixed(2)||'—'}</div>
+        <div class="sr-lbl">Resistance</div>
+        ${sr.dist_to_resistance!=null?`<div class="sr-dist" style="color:var(--muted)">+${sr.dist_to_resistance}%</div>`:''}
+      </div>
+    </div>
+    <div style="font-family:var(--mono);font-size:9px;color:var(--muted);margin-bottom:14px;letter-spacing:0.08em">
+      52W: $${sr.low_52w} ↔ $${sr.high_52w}
+      &nbsp;·&nbsp; ${sr.pct_from_52w_high}% from high
+    </div>` : `<div style="font-family:var(--mono);font-size:10px;color:var(--muted);margin-bottom:14px">No S/R data</div>`;
+
+  // Sentiment
+  const sentBlock = `
+    <div class="sent-row">
+      ${st.bullish_pct!=null ? `<div class="sent-pill">NEWS <span style="color:var(--green)">${(st.bullish_pct*100).toFixed(0)}%</span> bull</div>` : ''}
+      ${st.buzz_score!=null ? `<div class="sent-pill">BUZZ <span>${st.buzz_score?.toFixed(2)}</span></div>` : ''}
+      ${st.reddit_mention!=null ? `<div class="sent-pill">REDDIT <span>${st.reddit_mention}</span> mentions</div>` : ''}
+      ${st.twitter_mention!=null ? `<div class="sent-pill">TWITTER <span>${st.twitter_mention}</span> mentions</div>` : ''}
+      ${!st.bullish_pct && !st.buzz_score && !st.reddit_mention ? `<span style="font-family:var(--mono);font-size:10px;color:var(--muted)">No sentiment data</span>` : ''}
+    </div>`;
+
+  card.innerHTML = `
+    <div class="card-header">
+      <div>
+        <div class="ticker-name">${r.ticker}</div>
+        <div class="price-label">$${price?.toFixed(2)||'—'}</div>
+      </div>
+      <div class="score-block">
+        <div class="score-circle">
+          ${ring}
+          <div class="score-text">
+            <div class="score-num" style="color:${col}">${r.score}</div>
+            <div class="score-label">/ 100</div>
+          </div>
+        </div>
+        <div>
+          <div class="signal-badge" style="background:${sc.bg};color:${sc.txt};border:1px solid ${sc.border}">
+            ${r.signal}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="dims">${dimBars}</div>
+
+    <div class="section-title">ANALYST RATINGS</div>
+    ${analystChips}
+    ${targetLine}
+
+    <div class="section-title">SUPPORT · RESISTANCE</div>
+    ${srBlock}
+
+    <div class="section-title">SENTIMENT</div>
+    ${sentBlock}
+  `;
+
+  return card;
+}
+</script>
+</body>
+</html>
