@@ -1,0 +1,42 @@
+# Git
+.git/
+.gitignore
+
+# Secrets — NEVER bake into image
+.env
+*.env
+.env.local
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+
+# Node (built by Docker itself, not needed from host)
+frontend/node_modules/
+frontend/.vite/
+
+# Already-built static output from host (Docker rebuilds it fresh)
+static/
+
+# Dev / docs
+dashboard.html
+README.md
+*.zip
+*.tar.gz
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Tests / CI
+.pytest_cache/
+.coverage
+htmlcov/

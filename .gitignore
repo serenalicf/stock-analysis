@@ -1,97 +1,76 @@
-### Node
-# Dependencies
-node_modules/
-
-# Logs
-*.log
-
-# Runtime data
-*.pid
-*.pid.lock
-
-# Coverage
-coverage/
-*.lcov
-.nyc_output
-
-# Build output
-dist/
-build/Release
-
-# TypeScript cache
-*.tsbuildinfo
-
-# Framework build output and caches
-.cache
-.parcel-cache
-.next
-out/
-.nuxt
-
-# dotenv environment variable files
+# ── Secrets ──────────────────────────────────────────────────────────────────
 .env
+*.env
 .env.local
 .env.*.local
 
-# npm cache directory
-.npm
-*.tgz
-
-# yarn v2
-.yarn/cache
-.yarn/unplugged
-.yarn/install-state.gz
-.pnp.*
-
-### Python
-# Byte-compiled files
+# ── Python ───────────────────────────────────────────────────────────────────
 __pycache__/
 *.py[cod]
-*$py.class
-
-# C extensions
-*.so
-
-# Distribution / packaging
-build/
-dist/
-*.egg-info/
+*.pyo
+*.pyd
+*.pyc
+.Python
 *.egg
-
-# dotenv environment variable files
-.env
-
-# Virtual environments
-.venv
-env/
+*.egg-info/
+dist/
+build/
+eggs/
+parts/
+var/
+sdist/
+develop-eggs/
+.installed.cfg
+lib/
+lib64/
 venv/
+.venv/
+env/
+ENV/
+.python-version
 
-# Unit test / coverage reports
+# ── Node / React ─────────────────────────────────────────────────────────────
+frontend/node_modules/
+frontend/.vite/
+frontend/dist/
+
+# ── Built React output (served by FastAPI — regenerate with npm run build) ──
+static/
+
+# ── OS ───────────────────────────────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# ── IDE / editors ────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+
+# ── Logs ─────────────────────────────────────────────────────────────────────
+*.log
+logs/
+pip-log.txt
+
+# ── Testing ──────────────────────────────────────────────────────────────────
+.pytest_cache/
+.coverage
 htmlcov/
 .tox/
-.nox/
-.coverage
-.coverage.*
-.pytest_cache/
 
-# Type checkers
-.mypy_cache/
-
-# Jupyter Notebook
-.ipynb_checkpoints
-
-# pyenv
-# .python-version
-
-### Windows
-# Windows thumbnail cache files
-Thumbs.db
-
-# Folder config file
-[Dd]esktop.ini
-
-# Recycle Bin used on file shares
-$RECYCLE.BIN/
-
-# Windows shortcuts
-*.lnk
+# ── Misc ─────────────────────────────────────────────────────────────────────
+*.zip
+*.tar.gz
+-e 
+# ── Docker ──────────────────────────────────────────────────────────────────
+docker-compose.override.yml
+docker-compose.local.yml
