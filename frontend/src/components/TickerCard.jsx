@@ -141,6 +141,21 @@ function IndicatorDetail({ indicators }) {
   )
 }
 
+/* ── Shimmer placeholder ─────────────────────────────────────────────────── */
+
+function Shimmer({ width = "100%", height = 12, style = {} }) {
+  return (
+    <div style={{
+      width, height,
+      background: "linear-gradient(90deg, var(--surface) 25%, var(--surface2) 50%, var(--surface) 75%)",
+      backgroundSize: "200% 100%",
+      animation: "shimmer 1.4s ease infinite",
+      borderRadius: "3px",
+      ...style,
+    }} />
+  )
+}
+
 /* ── Main card ────────────────────────────────────────────────────────────── */
 
 export function TickerCard({ result, index, inWatchlist, onWatchlistToggle, onCompare, onClose, history }) {
@@ -149,15 +164,17 @@ export function TickerCard({ result, index, inWatchlist, onWatchlistToggle, onCo
     ticker, score, signal, breakdown,
     analyst, sentiment, support_resistance: sr,
     indicators, error,
+    loading: isLoading,
   } = result
 
   const sm    = signalMeta(signal)
   const price = indicators?.price || sr?.current_price || 0
-  const col   = scoreColor(score)
+  const col   = isLoading ? "var(--border2)" : scoreColor(score)
   const hasErrors = indicators?.fetch_errors && Object.keys(indicators.fetch_errors).length > 0
 
-  // Rich card background: subtle radial wash from top using score color
-  const cardBg = `radial-gradient(ellipse 80% 120px at 50% -20px, ${col}14 0%, transparent 70%), var(--surface)`
+  const cardBg = isLoading
+    ? "var(--surface)"
+    : `radial-gradient(ellipse 80% 120px at 50% -20px, ${scoreColor(score)}14 0%, transparent 70%), var(--surface)`
 
   if (error) {
     return (
@@ -260,7 +277,18 @@ export function TickerCard({ result, index, inWatchlist, onWatchlistToggle, onCo
 
       {hasErrors && <FetchWarning errors={indicators.fetch_errors} />}
 
-      <DimBars breakdown={breakdown} />
+      {isLoading && !breakdown?.technicals
+        ? <div style={{ display:'flex', flexDirection:'column', gap:'9px', marginBottom:'20px' }}>
+            {[80,100,60,90,70].map((w,i) => (
+              <div key={i} style={{ display:'flex', alignItems:'center', gap:'10px' }}>
+                <Shimmer width="80px" height={10} />
+                <Shimmer width={`${w}%`} height={4} style={{ flex:1 }} />
+                <Shimmer width="24px" height={10} />
+              </div>
+            ))}
+          </div>
+        : <DimBars breakdown={breakdown} />
+      }
 
       {/* Score history */}
       <SectionTitle icon={<TrendingUp size={11} />}>Score History</SectionTitle>

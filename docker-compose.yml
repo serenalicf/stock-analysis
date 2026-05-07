@@ -1,7 +1,7 @@
 services:
   signal:
     build: .
-    image: signal-dashboard:v1
+    image: signal-dashboard:v3
     container_name: signal-dashboard
     ports:
       - "8000:8000"

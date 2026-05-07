@@ -17,12 +17,16 @@ export function signalMeta(signal) {
   return map[signal] || { bg: 'var(--accent-dim)', text: 'var(--accent)', border: 'var(--accent)' }
 }
 
+// Updated dimension labels — matches new scoring.py WEIGHTS keys
 export const DIM_LABELS = {
-  technicals:        'Indicators',
-  trend:             'Trend Align',
-  support_resistance:'Support/Res',
-  analyst:           'Analyst',
-  sentiment:         'Sentiment',
+  technicals:          'Indicators',
+  trend:               'Trend Align',
+  support_resistance:  'Support/Res',
+  obv_vwap:            'OBV/VWAP',    // NEW
+  fibonacci:           'Fibonacci',   // NEW
+  analyst:             'Analyst',
+  sentiment:           'Sentiment',
+  fear_greed:          'Fear/Greed',  // NEW
 }
 
 export const PRESETS = [
